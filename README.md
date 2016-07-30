@@ -1,3 +1,1 @@
-# Base Image for Oro Apps
-
-See [orocrm docker image repo](https://github.com/djocker/orocrm) for example.
+# Monolitic docker image for docker based ORO Apps and for local development

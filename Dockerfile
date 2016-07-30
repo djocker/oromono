@@ -1,10 +1,7 @@
-FROM ubuntu:14.04
+FROM djocker/orobase
 
-COPY setup-base-system.sh /opt/bin/setup-base-system.sh
-RUN /bin/bash /opt/bin/setup-base-system.sh
-
-COPY bin/* /usr/local/bin/
-RUN chmod +x /usr/local/bin/*
+COPY bin/run.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/run.sh
 
 COPY conf/nginx.conf          /etc/nginx/nginx.conf
 COPY conf/nginx-bap.conf      /etc/nginx/sites-enabled/bap.conf

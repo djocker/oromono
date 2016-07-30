@@ -7,17 +7,32 @@ if [[ $(stat -c '%u:%g' /var/www) != $(getent passwd | grep www-data | awk -F ':
     chown -R $(getent passwd | grep www-data | awk -F ':' '{print $3 ":" $4}') ${APP_ROOT}
 fi
 
-# Prepare folders for persistent data
-[[ -d ${DATA_ROOT}/cache ]]          || sudo -u www-data mkdir -p ${DATA_ROOT}/cache
-[[ -d ${DATA_ROOT}/media ]]          || sudo -u www-data mkdir -p ${DATA_ROOT}/media
-[[ -d ${DATA_ROOT}/uploads ]]        || sudo -u www-data mkdir -p ${DATA_ROOT}/uploads
-[[ -d ${DATA_ROOT}/attachment ]]     || sudo -u www-data mkdir -p ${DATA_ROOT}/attachment
+# Check if the local usage
+if [[ -z ${IS_LOCAL} ]]; then
+    # Prepare folders for persistent data
+    [[ -d ${DATA_ROOT}/cache ]]          || sudo -u www-data mkdir -p ${DATA_ROOT}/cache
+    [[ -d ${DATA_ROOT}/media ]]          || sudo -u www-data mkdir -p ${DATA_ROOT}/media
+    [[ -d ${DATA_ROOT}/uploads ]]        || sudo -u www-data mkdir -p ${DATA_ROOT}/uploads
+    [[ -d ${DATA_ROOT}/attachment ]]     || sudo -u www-data mkdir -p ${DATA_ROOT}/attachment
 
-# Map environment variables
-composer-map-env.php ${APP_ROOT}/composer.json
+    # Map environment variables
+    composer-map-env.php ${APP_ROOT}/composer.json
 
-# Generate parameters.yml
-sudo -u www-data -E composer run-script post-install-cmd -n -d ${APP_ROOT};
+    # Generate parameters.yml
+    sudo -u www-data -E composer run-script post-install-cmd -n -d ${APP_ROOT};
+
+    # Clean exists folders
+    [[ -d ${APP_ROOT}/app/cache ]]      && rm -r ${APP_ROOT}/app/cache
+    [[ -d ${APP_ROOT}/web/media ]]      && rm -r ${APP_ROOT}/web/media
+    [[ -d ${APP_ROOT}/web/uploads ]]    && rm -r ${APP_ROOT}/web/uploads
+    [[ -d ${APP_ROOT}/app/attachment ]] && rm -r ${APP_ROOT}/app/attachment
+
+    # Linking persistent data
+    sudo -u www-data ln -s ${DATA_ROOT}/cache       ${APP_ROOT}/app/cache
+    sudo -u www-data ln -s ${DATA_ROOT}/media       ${APP_ROOT}/web/media
+    sudo -u www-data ln -s ${DATA_ROOT}/uploads     ${APP_ROOT}/web/uploads
+    sudo -u www-data ln -s ${DATA_ROOT}/attachment  ${APP_ROOT}/app/attachment
+fi
 
 if [[ ! -z ${APP_IS_INSTALLED} ]] \
     || [[ $(mysql -e "show databases like '${APP_DB_NAME}'" -h${APP_DB_HOST} -u${APP_DB_USER} -p${APP_DB_PASSWORD} -N | wc -l) -gt 0 ]] \
@@ -25,18 +40,6 @@ if [[ ! -z ${APP_IS_INSTALLED} ]] \
   sed -i -e "s/installed:.*/installed: true/g" /var/www/app/config/parameters.yml
   APP_IS_INSTALLED=true
 fi
-
-# Clean exists folders
-[[ -d ${APP_ROOT}/app/cache ]]      && rm -r ${APP_ROOT}/app/cache
-[[ -d ${APP_ROOT}/web/media ]]      && rm -r ${APP_ROOT}/web/media
-[[ -d ${APP_ROOT}/web/uploads ]]    && rm -r ${APP_ROOT}/web/uploads
-[[ -d ${APP_ROOT}/app/attachment ]] && rm -r ${APP_ROOT}/app/attachment
-
-# Linking persistent data
-sudo -u www-data ln -s ${DATA_ROOT}/cache       ${APP_ROOT}/app/cache
-sudo -u www-data ln -s ${DATA_ROOT}/media       ${APP_ROOT}/web/media
-sudo -u www-data ln -s ${DATA_ROOT}/uploads     ${APP_ROOT}/web/uploads
-sudo -u www-data ln -s ${DATA_ROOT}/attachment  ${APP_ROOT}/app/attachment
 
 if [[ -z ${APP_DB_PORT} ]]; then
     if [[ "pdo_pgsql" = ${APP_DB_DRIVER} ]]; then

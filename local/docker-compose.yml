@@ -31,6 +31,7 @@ minion:
   volumes:
     - ./www:/var/www
   environment:
+    - IS_LOCAL=true
     - CMD_INIT_BEFORE=
     - CMD_INIT_CLEAN=
     - CMD_INIT_INSTALLED=

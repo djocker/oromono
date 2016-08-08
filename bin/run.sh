@@ -2,6 +2,7 @@
 APP_ROOT="/var/www"
 DATA_ROOT="/srv/app-data"
 
+
 # Check and fix ownership if invalid
 if [[ $(stat -c '%u:%g' /var/www) != $(getent passwd | grep www-data | awk -F ':' '{print $3 ":" $4}') ]] || [[ $(ls -l ${APP_ROOT} | awk '{print $3 ":" $4}' | grep -v www-data:www-data | wc -l) -gt 0 ]]; then
     chown -R $(getent passwd | grep www-data | awk -F ':' '{print $3 ":" $4}') ${APP_ROOT}
@@ -73,7 +74,6 @@ else
     if [[ -d ${APP_ROOT}/app/cache ]] && [[ $(ls -l ${APP_ROOT}/app/cache/ | grep -v total | wc -l) -gt 0 ]]; then
         rm -r ${APP_ROOT}/app/cache/*
     fi
-    sudo -u www-data ${APP_ROOT}/app/console --env=prod oro:platform:update --force
 
     if [[ ! -z ${CMD_INIT_INSTALLED} ]]; then
         echo "Running init command: ${CMD_INIT_INSTALLED}"

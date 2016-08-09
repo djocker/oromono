@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 APP_ROOT="/var/www"
 DATA_ROOT="/srv/app-data"
-
+export COMPOSER_HOME=/tmp
 
 # Check and fix ownership if invalid
 if [[ $(stat -c '%u:%g' /var/www) != $(getent passwd | grep www-data | awk -F ':' '{print $3 ":" $4}') ]] || [[ $(ls -l ${APP_ROOT} | awk '{print $3 ":" $4}' | grep -v www-data:www-data | wc -l) -gt 0 ]]; then
@@ -20,7 +20,7 @@ if [[ -z ${IS_LOCAL} ]]; then
     composer-map-env.php ${APP_ROOT}/composer.json
 
     # Generate parameters.yml
-    sudo -u www-data -E composer run-script post-install-cmd -n -d ${APP_ROOT};
+    sudo -u www-data  -E composer --no-interaction run-script post-install-cmd -n -d ${APP_ROOT};
 
     # Clean exists folders
     [[ -d ${APP_ROOT}/app/cache ]]      && rm -r ${APP_ROOT}/app/cache

@@ -1,26 +1,37 @@
 #!/usr/bin/env bash
 APP_ROOT="/var/www"
 DATA_ROOT="/srv/app-data"
-export COMPOSER_HOME=/tmp
+
+function info {
+    printf "\033[0;36m===> \033[0;33m${1}\033[0m\n"
+}
 
 # Check and fix ownership if invalid
-if [[ $(stat -c '%u:%g' /var/www) != $(getent passwd | grep www-data | awk -F ':' '{print $3 ":" $4}') ]] || [[ $(ls -l ${APP_ROOT} | awk '{print $3 ":" $4}' | grep -v www-data:www-data | wc -l) -gt 0 ]]; then
+if [[ `stat -c '%u:%g' /var/www` -ne `getent passwd | grep www-data | awk -F ':' '{print $3 ":" $4}'` ]] || [[ `ls -l ${APP_ROOT} | awk '{print $3 ":" $4}' | grep -v www-data:www-data | wc -l` -gt 0 ]]; then
+    info "Fix ownership for /var/www  directory"
     chown -R $(getent passwd | grep www-data | awk -F ':' '{print $3 ":" $4}') ${APP_ROOT}
 fi
+
 
 # Check if the local usage
 if [[ -z ${IS_LOCAL} ]]; then
     # Prepare folders for persistent data
-    [[ -d ${DATA_ROOT}/cache ]]          || sudo -u www-data mkdir -p ${DATA_ROOT}/cache
-    [[ -d ${DATA_ROOT}/media ]]          || sudo -u www-data mkdir -p ${DATA_ROOT}/media
-    [[ -d ${DATA_ROOT}/uploads ]]        || sudo -u www-data mkdir -p ${DATA_ROOT}/uploads
-    [[ -d ${DATA_ROOT}/attachment ]]     || sudo -u www-data mkdir -p ${DATA_ROOT}/attachment
+    info "Verify directory ${DATA_ROOT}/cache"
+    [[ -d ${DATA_ROOT}/cache ]] || sudo -u www-data mkdir -p ${DATA_ROOT}/cache
+    info "Verify directory ${DATA_ROOT}/media"
+    [[ -d ${DATA_ROOT}/media ]] || sudo -u www-data mkdir -p ${DATA_ROOT}/media
+    info "Verify directory ${DATA_ROOT}/uploads"
+    [[ -d ${DATA_ROOT}/uploads ]] || sudo -u www-data mkdir -p ${DATA_ROOT}/uploads
+    info "Verify directory ${DATA_ROOT}/attachment"
+    [[ -d ${DATA_ROOT}/attachment ]] || sudo -u www-data mkdir -p ${DATA_ROOT}/attachment
 
     # Map environment variables
+    info "Map parameters.yml to environment variables"
     composer-map-env.php ${APP_ROOT}/composer.json
 
     # Generate parameters.yml
-    sudo -u www-data  -E composer --no-interaction run-script post-install-cmd -n -d ${APP_ROOT};
+    info "Run composer script 'post-install-cmd'"
+    sudo -H -u www-data -E composer --no-interaction run-script post-install-cmd -n -d ${APP_ROOT};
 
     # Clean exists folders
     [[ -d ${APP_ROOT}/app/cache ]]      && rm -r ${APP_ROOT}/app/cache
@@ -29,17 +40,22 @@ if [[ -z ${IS_LOCAL} ]]; then
     [[ -d ${APP_ROOT}/app/attachment ]] && rm -r ${APP_ROOT}/app/attachment
 
     # Linking persistent data
+    info "Linking persistent data folders to volumes"
     sudo -u www-data ln -s ${DATA_ROOT}/cache       ${APP_ROOT}/app/cache
     sudo -u www-data ln -s ${DATA_ROOT}/media       ${APP_ROOT}/web/media
     sudo -u www-data ln -s ${DATA_ROOT}/uploads     ${APP_ROOT}/web/uploads
     sudo -u www-data ln -s ${DATA_ROOT}/attachment  ${APP_ROOT}/app/attachment
 fi
 
+info "Checking if application is already installed"
 if [[ ! -z ${APP_IS_INSTALLED} ]] \
-    || [[ $(mysql -e "show databases like '${APP_DB_NAME}'" -h${APP_DB_HOST} -u${APP_DB_USER} -p${APP_DB_PASSWORD} -N | wc -l) -gt 0 ]] \
-    && [[ $(mysql -e "show tables from ${APP_DB_NAME};'" -h${APP_DB_HOST} -u${APP_DB_USER} -p${APP_DB_PASSWORD} -N | wc -l) -gt 0 ]]; then
+    || [[ `mysql -e "show databases like '${APP_DB_NAME}'" -h${APP_DB_HOST} -u${APP_DB_USER} -p${APP_DB_PASSWORD} -N | wc -l` -gt 0 ]] \
+    && [[ `mysql -e "show tables from ${APP_DB_NAME}" -h${APP_DB_HOST} -u${APP_DB_USER} -p${APP_DB_PASSWORD} -N | wc -l` -gt 0 ]]; then
   sed -i -e "s/installed:.*/installed: true/g" /var/www/app/config/parameters.yml
+  info "Application is already installed!"
   APP_IS_INSTALLED=true
+else
+  info "Application is not installed!"
 fi
 
 if [[ -z ${APP_DB_PORT} ]]; then
@@ -51,12 +67,12 @@ if [[ -z ${APP_DB_PORT} ]]; then
 fi
 
 until nc -z ${APP_DB_HOST} ${APP_DB_PORT}; do
-    echo "Waiting database on ${APP_DB_HOST}:${APP_DB_PORT}"
+    info "Waiting database on ${APP_DB_HOST}:${APP_DB_PORT}"
     sleep 2
 done
 
 if [[ ! -z ${CMD_INIT_BEFORE} ]]; then
-    echo "Running pre init command: ${CMD_INIT_BEFORE}"
+    info "Running pre init command: ${CMD_INIT_BEFORE}"
     sh -c "${CMD_INIT_BEFORE}"
 fi
 
@@ -66,27 +82,28 @@ cd ${APP_ROOT}
 if [[ -z ${APP_IS_INSTALLED} ]]
 then
     if [[ ! -z ${CMD_INIT_CLEAN} ]]; then
-        echo "Running init command: ${CMD_INIT_CLEAN}"
+        info "Running init command: ${CMD_INIT_CLEAN}"
         sh -c "${CMD_INIT_CLEAN}"
     fi
 else
-    echo "Updating application..."
+    info "Updating application..."
     if [[ -d ${APP_ROOT}/app/cache ]] && [[ $(ls -l ${APP_ROOT}/app/cache/ | grep -v total | wc -l) -gt 0 ]]; then
         rm -r ${APP_ROOT}/app/cache/*
     fi
 
     if [[ ! -z ${CMD_INIT_INSTALLED} ]]; then
-        echo "Running init command: ${CMD_INIT_INSTALLED}"
+        info "Running init command: ${CMD_INIT_INSTALLED}"
         sh -c "${CMD_INIT_INSTALLED}"
     fi
 
 fi
 
 if [[ ! -z ${CMD_INIT_AFTER} ]]; then
-    echo "Running post init command: ${CMD_INIT_AFTER}"
+    info "Running post init command: ${CMD_INIT_AFTER}"
     sh -c "${CMD_INIT_AFTER}"
 fi
 
 # Starting services
-exec /usr/local/bin/supervisord -n
+info "Starting supervisord"
+exec /usr/local/bin/supervisord -n -c /etc/supervisord.conf
 

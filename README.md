@@ -29,5 +29,5 @@ For local usage [see](./local/README.md).
 
 `CMD_INIT_BEFORE` - Command will be executed before initialization (or installation)  
 `CMD_INIT_CLEAN` - Command will be used if application not installed (here you can initiate installation via cli)  
-`CMD_INIT_INSTALLED` - Command will be used for initialization of already installed application for example: `sudo -u www-data /var/www/app/console --env=prod oro:platform:update --force`  
+`CMD_INIT_INSTALLED` - Command will be used for initialization of already installed application for example: `runuser -s /bin/sh -c "/var/www/app/console --env=prod oro:platform:update --force" www-data`  
 `CMD_INIT_AFTER` - Command will be executed after initialization (or installation)

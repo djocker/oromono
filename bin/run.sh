@@ -17,13 +17,13 @@ fi
 if [[ -z ${IS_LOCAL} ]]; then
     # Prepare folders for persistent data
     info "Verify directory ${DATA_ROOT}/cache"
-    [[ -d ${DATA_ROOT}/cache ]] || sudo -u www-data mkdir -p ${DATA_ROOT}/cache
+    [[ -d ${DATA_ROOT}/cache ]] || runuser -s /bin/sh -c "mkdir -p ${DATA_ROOT}/cache" www-data
     info "Verify directory ${DATA_ROOT}/media"
-    [[ -d ${DATA_ROOT}/media ]] || sudo -u www-data mkdir -p ${DATA_ROOT}/media
+    [[ -d ${DATA_ROOT}/media ]] || runuser -s /bin/sh -c "mkdir -p ${DATA_ROOT}/media" www-data
     info "Verify directory ${DATA_ROOT}/uploads"
-    [[ -d ${DATA_ROOT}/uploads ]] || sudo -u www-data mkdir -p ${DATA_ROOT}/uploads
+    [[ -d ${DATA_ROOT}/uploads ]] || runuser -s /bin/sh -c "mkdir -p ${DATA_ROOT}/uploads" www-data
     info "Verify directory ${DATA_ROOT}/attachment"
-    [[ -d ${DATA_ROOT}/attachment ]] || sudo -u www-data mkdir -p ${DATA_ROOT}/attachment
+    [[ -d ${DATA_ROOT}/attachment ]] || runuser -s /bin/sh -c "mkdir -p ${DATA_ROOT}/attachment" www-data
 
     # Map environment variables
     info "Map parameters.yml to environment variables"
@@ -31,7 +31,7 @@ if [[ -z ${IS_LOCAL} ]]; then
 
     # Generate parameters.yml
     info "Run composer script 'post-install-cmd'"
-    sudo -H -u www-data -E composer --no-interaction run-script post-install-cmd -n -d ${APP_ROOT};
+    runuser -s /bin/sh -c "composer --no-interaction run-script post-install-cmd -n -d ${APP_ROOT}" www-data
 
     # Clean exists folders
     [[ -d ${APP_ROOT}/app/cache ]]      && rm -r ${APP_ROOT}/app/cache
@@ -41,10 +41,11 @@ if [[ -z ${IS_LOCAL} ]]; then
 
     # Linking persistent data
     info "Linking persistent data folders to volumes"
-    sudo -u www-data ln -s ${DATA_ROOT}/cache       ${APP_ROOT}/app/cache
-    sudo -u www-data ln -s ${DATA_ROOT}/media       ${APP_ROOT}/web/media
-    sudo -u www-data ln -s ${DATA_ROOT}/uploads     ${APP_ROOT}/web/uploads
-    sudo -u www-data ln -s ${DATA_ROOT}/attachment  ${APP_ROOT}/app/attachment
+    
+    runuser -s /bin/sh -c "ln -s ${DATA_ROOT}/cache       ${APP_ROOT}/app/cache" www-data
+    runuser -s /bin/sh -c "ln -s ${DATA_ROOT}/media       ${APP_ROOT}/web/media" www-data
+    runuser -s /bin/sh -c "ln -s ${DATA_ROOT}/uploads     ${APP_ROOT}/web/uploads" www-data
+    runuser -s /bin/sh -c "ln -s ${DATA_ROOT}/attachment  ${APP_ROOT}/app/attachment" www-data
 fi
 
 info "Checking if application is already installed"

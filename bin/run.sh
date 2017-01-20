@@ -7,24 +7,21 @@ function info {
 }
 
 # Check and fix ownership if invalid
-if [[ `stat -c '%u:%g' /var/www` != `getent passwd | grep www-data | awk -F ':' '{print $3 ":" $4}'` ]] || [[ `ls -l ${APP_ROOT} | awk '{print $3 ":" $4}' | grep -v www-data:www-data | wc -l` -gt 0 ]]; then
-    info "Fix ownership for /var/www  directory"
-    chown -R $(getent passwd | grep www-data | awk -F ':' '{print $3 ":" $4}') ${APP_ROOT}
-fi
 
+VOLUMES[0]="/var/www/app/cache"
+VOLUMES[1]="/var/www/web/uploads";
+VOLUMES[2]="/var/www/web/media";
+VOLUMES[3]="/var/www/app/attachment";
+
+for i in ${!VOLUMES[*]}; do 
+  if [[ `stat -c '%u:%g' ${VOLUMES[$i]}` != `getent passwd | grep www-data | awk -F ':' '{print $3 ":" $4}'` ]]; then
+      info "Fix ownership for ${VOLUMES[$i]}"
+      chown -R $(getent passwd | grep www-data | awk -F ':' '{print $3 ":" $4}') ${VOLUMES[$i]}
+  fi
+done
 
 # Check if the local usage
 if [[ -z ${IS_LOCAL} ]]; then
-    # Prepare folders for persistent data
-    info "Verify directory ${DATA_ROOT}/cache"
-    [[ -d ${DATA_ROOT}/cache ]] || runuser -s /bin/sh -c "mkdir -p ${DATA_ROOT}/cache" www-data
-    info "Verify directory ${DATA_ROOT}/media"
-    [[ -d ${DATA_ROOT}/media ]] || runuser -s /bin/sh -c "mkdir -p ${DATA_ROOT}/media" www-data
-    info "Verify directory ${DATA_ROOT}/uploads"
-    [[ -d ${DATA_ROOT}/uploads ]] || runuser -s /bin/sh -c "mkdir -p ${DATA_ROOT}/uploads" www-data
-    info "Verify directory ${DATA_ROOT}/attachment"
-    [[ -d ${DATA_ROOT}/attachment ]] || runuser -s /bin/sh -c "mkdir -p ${DATA_ROOT}/attachment" www-data
-
     # Map environment variables
     info "Map parameters.yml to environment variables"
     composer-map-env.php ${APP_ROOT}/composer.json
@@ -32,20 +29,6 @@ if [[ -z ${IS_LOCAL} ]]; then
     # Generate parameters.yml
     info "Run composer script 'post-install-cmd'"
     runuser -s /bin/sh -c "composer --no-interaction run-script post-install-cmd -n -d ${APP_ROOT}" www-data
-
-    # Clean exists folders
-    [[ -d ${APP_ROOT}/app/cache ]]      && rm -r ${APP_ROOT}/app/cache
-    [[ -d ${APP_ROOT}/web/media ]]      && rm -r ${APP_ROOT}/web/media
-    [[ -d ${APP_ROOT}/web/uploads ]]    && rm -r ${APP_ROOT}/web/uploads
-    [[ -d ${APP_ROOT}/app/attachment ]] && rm -r ${APP_ROOT}/app/attachment
-
-    # Linking persistent data
-    info "Linking persistent data folders to volumes"
-    
-    runuser -s /bin/sh -c "ln -s ${DATA_ROOT}/cache       ${APP_ROOT}/app/cache" www-data
-    runuser -s /bin/sh -c "ln -s ${DATA_ROOT}/media       ${APP_ROOT}/web/media" www-data
-    runuser -s /bin/sh -c "ln -s ${DATA_ROOT}/uploads     ${APP_ROOT}/web/uploads" www-data
-    runuser -s /bin/sh -c "ln -s ${DATA_ROOT}/attachment  ${APP_ROOT}/app/attachment" www-data
 fi
 
 if [[ -z ${APP_DB_PORT} ]]; then

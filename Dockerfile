@@ -1,4 +1,4 @@
-FROM djocker/orobase
+FROM djocker/orobase:1.2
 
 COPY bin/run.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/run.sh
